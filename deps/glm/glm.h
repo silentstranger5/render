@@ -1,6 +1,8 @@
 #ifndef GLM_H
 #define GLM_H
 
+#include <stdlib.h>
+
 typedef float vec2[2];
 typedef float vec3[3];
 typedef float vec4[4];
@@ -102,5 +104,12 @@ void glm_perspective(float fovy, float aspect, float near, float far, mat4 d);
 
 void glm_aabb2_empty(vec2 aabb[2]);
 void glm_aabb2_add(vec2 aabb[2], vec2 v);
+void glm_aabb2_crop(vec2 box[2], vec2 crop[2], vec2 dest[2]);
+int glm_aabb2_point(vec2 aabb[2], vec2 v);
+
+void glm_aabb_empty(vec3 aabb[2]);
+void glm_aabb_add(vec3 aabb[2], vec3 v);
+void glm_aabb_crop(vec3 box[2], vec3 crop[2], vec3 dest[2]);
+int glm_aabb_point(vec3 aabb[2], vec3 v);
 
 #endif

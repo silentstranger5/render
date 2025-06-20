@@ -1,31 +1,5 @@
 #include "graphics.h"
 
-static float area(vec3 a, vec3 b, vec3 c)
-{
-    return -1 * ((a[1] - c[1]) * (b[0] - c[0]) +
-                 (b[1] - c[1]) * (c[0] - a[0])) / 2;
-}
-
-static void barycentric(vec3 t[3], vec3 p, vec3 d)
-{
-    float at1 = area(t[1], t[2], p);
-    float at2 = area(t[2], t[0], p);
-    float at3 = area(t[0], t[1], p);
-    if (at1 < 0 || at2 < 0 || at3 < 0)
-        return;
-    float at = at1 + at2 + at3;
-    if (at == 0) return;
-    glm_vec3_copy((vec3){at1, at2, at3}, d);
-    glm_vec3_scale(d, 1 / at, d);
-}
-
-static int intriangle(vec3 v)
-{
-    return (v[0] >= 0 && v[0] <= 1 &&
-            v[1] >= 0 && v[1] <= 1 &&
-            v[2] >= 0 && v[2] <= 1);
-}
-
 int graphics_init(graphics_ctx *ctx, int width, int height)
 {
     if (width <= 0 || height <= 0) return 0;
@@ -62,6 +36,25 @@ void graphics_clean(graphics_ctx *ctx)
             ctx->dbuffer[y][x] = INFINITY;
 }
 
+static float area(vec3 a, vec3 b, vec3 c)
+{
+    return -1 * ((a[1] - c[1]) * (b[0] - c[0]) +
+                 (b[1] - c[1]) * (c[0] - a[0])) / 2;
+}
+
+static void barycentric(vec3 t[3], vec3 p, vec3 d)
+{
+    float at1 = area(t[1], t[2], p);
+    float at2 = area(t[2], t[0], p);
+    float at3 = area(t[0], t[1], p);
+    if (at1 < 0 || at2 < 0 || at3 < 0)
+        return;
+    float at = at1 + at2 + at3;
+    if (at == 0) return;
+    glm_vec3_copy((vec3){at1, at2, at3}, d);
+    glm_vec3_scale(d, 1 / at, d);
+}
+
 void shader(shader_ctx *ctx, vec3 weights, vec3 color)
 {
     if (ctx->mtl->mapidx[DIFFUSE] != 0)
@@ -73,7 +66,8 @@ void shader(shader_ctx *ctx, vec3 weights, vec3 color)
         float vval = glm_vec3_dot(weights, vvec);
         SDL_ReadSurfacePixelFloat(
             surface, 
-            (int) (uval * surface->w), (int) ((1 - vval) * surface->h),
+            (int) (uval * surface->w), 
+            (int) ((1 - vval) * surface->h),
             &color[0], &color[1], &color[2], NULL
         );
     }
@@ -88,6 +82,7 @@ void shader(shader_ctx *ctx, vec3 weights, vec3 color)
     float nzval = glm_vec3_dot(weights, nzvec);
     vec3 normal = {nxval, nyval, nzval};
     float lval = glm_vec3_dot(normal, ctx->tolight);
+    lval = max(lval, 0.01f);
     glm_vec3_scale(color, lval, color);
 }
 
@@ -97,6 +92,14 @@ void graphics_triangle(graphics_ctx *gctx, shader_ctx *sctx)
     glm_aabb2_empty(aabb);
     for (int i = 0; i < 3; i++)
         glm_aabb2_add(aabb, sctx->v[i].position);
+    glm_aabb2_crop(
+        aabb, 
+        (vec2[2]) {
+            {0, 0}, 
+            {(float) gctx->width, (float) gctx->height}
+        }, 
+        aabb
+    );
     for (int y = (int) aabb[0][1]; y < aabb[1][1]; y++)
         for (int x = (int) aabb[0][0]; x < aabb[1][0]; x++)
         {
@@ -110,8 +113,7 @@ void graphics_triangle(graphics_ctx *gctx, shader_ctx *sctx)
                 glm_vec3_copy(sctx->v[i].position, positions[i]);
             }
             barycentric(positions, (vec3){(float) x, (float) y, 1}, weights);
-            if (glm_vec3_eq(weights, 0) || !intriangle(weights))
-                continue;
+            if (glm_vec3_eq(weights, 0)) continue;
             float depth = glm_vec3_dot(weights, depths);
             if (depth > gctx->dbuffer[y][x]) continue;
             gctx->dbuffer[y][x] = depth;

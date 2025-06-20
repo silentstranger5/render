@@ -11,7 +11,7 @@
 
 #define WIDTH   640
 #define HEIGHT  480
-#define OBJFILE "../../res/cube.obj"
+#define OBJFILE "../../res/teapot.obj"
 
 #define M_PI    3.14159265358979323846
 
@@ -19,7 +19,6 @@ struct
 {
     SDL_Window*     window;
     SDL_Renderer*   renderer;
-    SDL_Texture*    texture;
     array           maps;
 }
 app_ctx;
@@ -38,25 +37,10 @@ struct
 }
 camera;
 
-vec3 light = {0, 0, 1};
+vec3 light = {1, 0, 0};
 
 obj_ctx octx;
 graphics_ctx gctx;
-
-int outbounds(vec3 t[3])
-{
-    float aspect = (float) WIDTH / HEIGHT;
-    int t0 = ((t[0][0] < -1 * aspect || t[0][0] > 1 * aspect) ||
-            (t[0][1] < -1 || t[0][1] > 1) ||
-            (t[0][2] < -1 || t[0][2] > 1));
-    int t1 = ((t[1][0] < -1 * aspect || t[1][0] > 1 * aspect) ||
-            (t[1][1] < -1 || t[1][1] > 1) ||
-            (t[1][2] < -1 || t[1][2] > 1));
-    int t2 = ((t[2][0] < -1 * aspect || t[2][0] > 1 * aspect) ||
-            (t[2][1] < -1 || t[2][1] > 1) ||
-            (t[2][2] < -1 || t[2][2] > 1));
-    return t0 && t1 && t2;
-}
 
 int render(void)
 {
@@ -110,10 +94,14 @@ int render(void)
                 glm_vec3_normalize(vec);
                 glm_vec3_copy(vec, vertex->normal);
             }
-            vec3 t[3];
+            vec3 bbox[2] = {
+                {-1 * aspect, -1, -1},
+                {+1 * aspect, +1, +1},
+            };
+            int inbounds = 0;
             for (int k = 0; k < 3; k++)
-                glm_vec3_copy(sctx.v[k].position, t[k]);
-            if (outbounds(t)) continue;
+                inbounds |= glm_aabb_point(bbox, sctx.v[k].position);
+            if (!inbounds) continue;
             for (int k = 0; k < 3; k++)
             {
                 sctx.v[k].position[0] =  sctx.v[k].position[0] * WIDTH  / 2 + WIDTH  / 2;
@@ -123,12 +111,13 @@ int render(void)
             graphics_triangle(&gctx, &sctx);
         }
     }
-    int pitch;
-    void *pixels = NULL;
-    SDL_LockTexture(app_ctx.texture, NULL, &pixels, &pitch);
-    memcpy(pixels, *gctx.cbuffer, pitch * app_ctx.texture->h);
-    SDL_UnlockTexture(app_ctx.texture);
-    SDL_RenderTexture(app_ctx.renderer, app_ctx.texture, NULL, NULL);
+    SDL_Surface *surface = SDL_GetWindowSurface(app_ctx.window);
+    SDL_ConvertPixels(
+        surface->w, surface->h, SDL_PIXELFORMAT_RGB96_FLOAT, 
+        *gctx.cbuffer, surface->w * sizeof(vec3),
+        surface->format, surface->pixels, surface->w * sizeof(uint32_t)
+    );
+    SDL_UpdateWindowSurface(app_ctx.window);
     graphics_clean(&gctx);
     return 1;
 }
@@ -176,13 +165,6 @@ int app_init(void)
     if (!SDL_CreateWindowAndRenderer("render", WIDTH, HEIGHT, 0, &app_ctx.window, &app_ctx.renderer))
     {
         SDL_Log("Failed to init window / renderer: %s", SDL_GetError());
-        return SDL_APP_FAILURE;
-    }
-
-    app_ctx.texture = SDL_CreateTexture(app_ctx.renderer, SDL_PIXELFORMAT_RGB96_FLOAT, SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
-    if (!app_ctx.texture)
-    {
-        SDL_Log("Failed to create texture: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
@@ -272,12 +254,9 @@ int app_iterate(void)
     float dt = (float) (now - last) / 1000;
     last = now;
     camera_update(dt);
-    SDL_RenderClear(app_ctx.renderer);
     render();
     model *mod = array_get(&octx.models, 0);
     mod->yaw++;
-    SDL_RenderPresent(app_ctx.renderer);
-    SDL_Delay(10);
     return SDL_APP_CONTINUE;
 }
 

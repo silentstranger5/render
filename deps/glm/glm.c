@@ -596,8 +596,58 @@ void glm_aabb2_empty(vec2 aabb[2])
 
 void glm_aabb2_add(vec2 aabb[2], vec2 v)
 {
-    if (v[0] < aabb[0][0]) aabb[0][0] = v[0];
-    if (v[0] > aabb[1][0]) aabb[1][0] = v[0];
-    if (v[1] < aabb[0][1]) aabb[0][1] = v[1];
-    if (v[1] > aabb[1][1]) aabb[1][1] = v[1];
+    for (int i = 0; i < 2; i++)
+    {
+        if (v[i] < aabb[0][i]) aabb[0][i] = v[i];
+        if (v[i] > aabb[1][i]) aabb[1][i] = v[i];
+    }
+}
+
+void glm_aabb2_crop(vec2 box[2], vec2 crop[2], vec2 dest[2])
+{
+    for (int i = 0; i < 2; i++)
+    {
+        dest[0][i] = max(box[0][i], crop[0][i]);
+        dest[1][i] = min(box[1][i], crop[1][i]);
+    }
+}
+
+int glm_aabb2_point(vec2 aabb[2], vec2 v)
+{
+    return  v[0] >= aabb[0][0] && v[0] <= aabb[1][0] &&
+            v[1] >= aabb[0][1] && v[1] <= aabb[1][1];
+}
+
+void glm_aabb_empty(vec3 aabb[2])
+{
+    for (int i = 0; i < 3; i++)
+    {
+        aabb[0][i] =  INFINITY;
+        aabb[1][i] = -INFINITY;
+    }
+}
+
+void glm_aabb_add(vec3 aabb[2], vec3 v)
+{
+    for (int i = 0; i < 3; i++)
+    {
+        if (v[i] < aabb[0][i]) aabb[0][i] = v[i];
+        if (v[i] > aabb[1][i]) aabb[1][i] = v[i];
+    }
+}
+
+void glm_aabb_crop(vec3 box[2], vec3 crop[2], vec3 dest[2])
+{
+    for (int i = 0; i < 3; i++)
+    {
+        dest[0][i] = max(box[0][i], crop[0][i]);
+        dest[1][i] = min(box[1][i], crop[1][i]);
+    }
+}
+
+int glm_aabb_point(vec3 aabb[2], vec3 v)
+{
+    return  v[0] >= aabb[0][0] && v[0] <= aabb[1][0] &&
+            v[1] >= aabb[0][1] && v[1] <= aabb[1][1] &&
+            v[2] >= aabb[0][2] && v[2] <= aabb[1][2];
 }
